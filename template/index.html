@@ -1,0 +1,184 @@
+{% extends "base.html" %} {% block content %}
+<div id="app">
+
+    <h1>🔗 لینک‌کوتاه</h1>
+    <p class="subtitle">لینک بلندت رو بده، کوتاهش می‌کنیم!</p>
+
+    <!-- فرم ساخت -->
+    <div class="card">
+        <input v-model.trim="form.original_url" dir="ltr" placeholder="https://example.com/very/long/url..." @keyup.enter="createLink">
+        <div class="row">
+            <input v-model.trim="form.custom_code" dir="ltr" placeholder="کد دلخواه (اختیاری)">
+            <input v-model="form.expires_at" type="datetime-local" title="انقضا (اختیاری)">
+        </div>
+        <button style="width:100%" :disabled="loading || !form.original_url" @click="createLink">
+      ${ loading ? 'در حال ساخت...' : 'کوتاه کن!' }
+    </button>
+        <div v-if="message" class="alert" :class="message.type">
+            <span dir="ltr">${ message.text }</span>
+        </div>
+    </div>
+
+    <!-- لیست لینک‌ها -->
+    <div class="card">
+        <h3>لینک‌های من <span class="badge">${ total }</span></h3>
+        <div v-if="links.length === 0" class="empty">هنوز لینکی نساختی 🥲</div>
+        <div v-for="l in links" :key="l.short_code" class="link-item">
+            <div>
+                <a class="short-link" :href="fullUrl(l.short_code)" target="_blank">
+          ${ prettyUrl(l.short_code) }
+        </a>
+                <div class="original">${ l.original_url }</div>
+            </div>
+            <div class="actions">
+                <span class="badge">${ l.clicks } کلیک</span>
+                <button class="btn-sm btn-ghost" @click="copy(l.short_code)">
+          ${ copied === l.short_code ? '✓' : '📋' }
+        </button>
+                <button class="btn-sm btn-ghost" @click="showStats(l.short_code)">📊</button>
+                <button class="btn-sm btn-danger" @click="deleteLink(l.short_code)">🗑️</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال آمار -->
+    <div v-if="stats" class="modal-backdrop" @click.self="stats = null">
+        <div class="modal">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>📊 آمار ${ stats.short_code }</h3>
+                <button class="btn-sm btn-ghost" @click="stats = null">✕</button>
+            </div>
+            <p style="margin:.5rem 0 1rem;">مجموع کلیک‌ها: <b>${ stats.total_clicks }</b></p>
+
+            <h4>کلیک ۷ روز اخیر</h4>
+            <div v-if="stats.daily_clicks.length === 0" class="empty">این هفته کلیکی نبوده</div>
+            <div v-for="d in stats.daily_clicks" :key="d.date" class="stat-row">
+                <span class="date">${ d.date }</span>
+                <div class="bar" :style="{ width: barWidth(d.clicks) }">${ d.clicks }</div>
+            </div>
+
+            <h4>منبع‌های ورودی</h4>
+            <div v-if="stats.top_referers.length === 0" class="empty">—</div>
+            <div v-for="r in stats.top_referers" :key="r.referer" class="stat-row">
+                <span class="original" style="flex:1">${ r.referer }</span>
+                <span class="badge">${ r.count }</span>
+            </div>
+
+            <h4>QR Code</h4>
+            <img class="qr-img" :src="'/' + stats.short_code + '/qr'" width="160" height="160" alt="QR">
+        </div>
+    </div>
+
+</div>
+{% endblock %} {% block scripts %}
+<script>
+    const {
+        createApp
+    } = Vue;
+
+    createApp({
+        delimiters: ['${', '}'], // ⚠️ مهم! پایین توضیح دادم
+        data() {
+            return {
+                base_url: '{{ base_url }}', // 👈 از Jinja تزریق می‌شه
+                form: {
+                    original_url: '',
+                    custom_code: '',
+                    expires_at: ''
+                },
+                links: [],
+                total: 0,
+                loading: false,
+                message: null,
+                copied: null,
+                stats: null,
+            }
+        },
+        computed: {
+            maxDaily() {
+                return Math.max(1, ...this.stats.daily_clicks.map(d => d.clicks));
+            },
+        },
+        async mounted() {
+            await this.loadLinks();
+        },
+        methods: {
+            fullUrl(code) {
+                return `${this.base_url}/${code}`;
+            },
+            prettyUrl(code) {
+                return this.base_url.replace(/^https?:\/\//, '') + '/' + code;
+            },
+
+            async loadLinks() {
+                const res = await fetch('/url/all');
+                const data = await res.json();
+                this.links = data.items;
+                this.total = data.total;
+            },
+
+            async createLink() {
+                this.loading = true;
+                this.message = null;
+                const body = {
+                    original_url: this.form.original_url
+                };
+                if (this.form.custom_code) body.custom_code = this.form.custom_code;
+                if (this.form.expires_at) body.expires_at = new Date(this.form.expires_at).toISOString();
+                try {
+                    const res = await fetch('/url/short', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(body),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) {
+                        this.message = {
+                            type: 'error',
+                            text: typeof data.detail === 'string' ? data.detail : 'ورودی نامعتبره'
+                        };
+                    } else {
+                        this.message = {
+                            type: 'success',
+                            text: this.fullUrl(data.short_code)
+                        };
+                        this.form = {
+                            original_url: '',
+                            custom_code: '',
+                            expires_at: ''
+                        };
+                        await this.loadLinks();
+                    }
+                } finally {
+                    this.loading = false;
+                }
+            },
+
+            async copy(code) {
+                await navigator.clipboard.writeText(this.fullUrl(code));
+                this.copied = code;
+                setTimeout(() => (this.copied = null), 1500);
+            },
+
+            async deleteLink(code) {
+                if (!confirm('این لینک حذف شه؟')) return;
+                const res = await fetch(`/${code}`, {
+                    method: 'DELETE'
+                });
+                if (res.ok) await this.loadLinks();
+            },
+
+            async showStats(code) {
+                const res = await fetch(`/${code}/stats`);
+                if (res.ok) this.stats = await res.json();
+            },
+
+            barWidth(clicks) {
+                return Math.max(8, (clicks / this.maxDaily) * 100) + '%';
+            },
+        },
+    }).mount('#app');
+</script>
+{% endblock %}
