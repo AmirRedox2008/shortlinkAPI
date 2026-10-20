@@ -32,11 +32,9 @@
 
 ## 📸 دمو
 
-<!-- دو تا اسکرین‌شات بگیر بذار تو پوشه screenshots: داشبورد و صفحه /docs -->
 
-| داشبورد | Swagger |
-|---------|---------|
-| ![Dashboard](screenshots/dashboard.png) | ![Swagger](screenshots/swagger.png) |
+<img width="1920" height="934" alt="Screenshot 2026-10-19 at 10-04-03 لینک_کوتاه" src="https://github.com/user-attachments/assets/7a21c757-2b2a-4dbb-9367-db2532e853bc" />
+
 
 ## 🚀 اجرا با Docker (پیشنهادی)
 
