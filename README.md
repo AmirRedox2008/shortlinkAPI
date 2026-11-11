@@ -133,14 +133,6 @@ shortLink/
 
 </div>
 
-## 🗺️ نقشه راه
-
-- [ ] تست‌های pytest + CI با GitHub Actions
-- [ ] احراز هویت JWT و لینک‌های اختصاصی هر کاربر
-- [ ] مهاجرت به PostgreSQL + Alembic
-- [ ] ریدایرکت هوشمند (موبایل/دسکتاپ)
-- [ ] دیپلوی زنده روی Railway / Render
-
 ## 👨‍💻 توسعه‌دهنده
 
 **[@AmirRedox2008](https://github.com/AmirRedox2008)**
